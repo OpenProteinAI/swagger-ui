@@ -5,6 +5,7 @@ import toLower from "lodash/toLower"
 import { extractFileNameFromContentDispositionHeader } from "core/utils"
 import { getKnownSyntaxHighlighterLanguage } from "core/utils/jsonParse"
 import win from "core/window"
+import JSON5 from "json5"
 
 export default class ResponseBody extends React.PureComponent {
   state = {
@@ -91,6 +92,32 @@ export default class ResponseBody extends React.PureComponent {
       } else {
         bodyEl = <pre className="microlight">Download headers detected but your browser does not support downloading binary via XHR (Blob).</pre>
       }
+
+      // JSON5
+    } else if (/json5/i.test(contentType)) {
+      // JSON5
+      // console.log(content)
+      // console.log(parsedContent)
+      // We do't care that content is a Blob which is weird.
+      // But parsedContent contains the raw text, so just render it as json5.
+      
+      let language = null
+      let testValueForJson = getKnownSyntaxHighlighterLanguage(parsedContent)
+      if (testValueForJson) {
+        language = "json" // let it try to use the json syntax highlighter. if it is json5, the syntax highlighter fails gracefully
+      }
+      try {
+        try {
+          body = JSON.stringify(JSON.parse(parsedContent), null, "  ")
+        } catch (jsonParseError) {
+          // then try to parse it as json5, and lose syntax highlighting.
+          body = JSON5.stringify(JSON5.parse(parsedContent), null, "  ")
+        }
+      } catch (error) {
+        body = "can't parse JSON5.  Raw result:\n\n" + content
+      }
+
+      bodyEl = <HighlightCode language={language} downloadable fileName={`${downloadName}.json5`} value={ body } getConfigs={ getConfigs } canCopy />
 
       // Anything else (CORS)
     } else if (/json/i.test(contentType)) {
